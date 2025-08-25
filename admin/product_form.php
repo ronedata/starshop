@@ -1,33 +1,123 @@
 <?php
 // admin/product_form.php
 require_once __DIR__.'/header.php';
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 $pdo = get_pdo();
+
+/* CSRF টোকেন */
+if (empty($_SESSION['csrf'])) {
+  $_SESSION['csrf'] = bin2hex(random_bytes(16));
+}
 
 define('DEFAULT_IMG_URL', rtrim(UPLOAD_URL,'/').'/default.jpg'); // ডিফল্ট ইমেজ URL
 if (!is_dir(UPLOAD_DIR)) { @mkdir(UPLOAD_DIR, 0777, true); }     // আপলোড ফোল্ডার নিশ্চিত
 
 /* ========================
-   Delete Product (optional)
+   Helpers: uploads + safe unlink
    ======================== */
-if (isset($_GET['del'])) {
-  $id = (int)$_GET['del'];
-  // প্রোডাক্ট ইমেজ মুছুন (DB)
-  $pdo->prepare("DELETE FROM product_images WHERE product_id=?")->execute([$id]);
-  // প্রোডাক্ট মুছুন
-  $pdo->prepare("DELETE FROM products WHERE id=?")->execute([$id]);
-  header('Location: products.php'); exit;
+function uploads_dir_abs(): string {
+  $rp = realpath(UPLOAD_DIR);
+  return $rp !== false ? $rp : rtrim(UPLOAD_DIR, '/');
+}
+
+function is_default_image_basename(string $pathOrUrl): bool {
+  return strtolower(basename($pathOrUrl)) === 'default.jpg';
+}
+
+function path_in_dir(string $path, string $baseDir): bool {
+  $rp = realpath($path);
+  $rb = realpath($baseDir);
+  if ($rp === false || $rb === false) return false;
+  return strpos($rp, $rb) === 0;
+}
+
+function to_abs_upload_path(?string $image): ?string {
+  if (!$image) return null;
+
+  // যদি পূর্ণ URL হয়, path অংশ কেটে নিন
+  if (preg_match('~^https?://~i', $image)) {
+    $parts = parse_url($image);
+    $image = $parts['path'] ?? '';
+  }
+
+  // UPLOAD_URL/BASE_URL থাকলে প্রিফিক্স কেটে দিন
+  if (defined('UPLOAD_URL') && UPLOAD_URL && strpos($image, UPLOAD_URL) === 0) {
+    $image = substr($image, strlen(UPLOAD_URL));
+  }
+  if (defined('BASE_URL') && BASE_URL && strpos($image, BASE_URL) === 0) {
+    $image = substr($image, strlen(BASE_URL));
+  }
+
+  // লিডিং স্ল্যাশ সরাই
+  $image = ltrim($image, '/');
+
+  // 'uploads/...' থাকলে তার পরের অংশ
+  if (stripos($image, 'uploads/') === 0) {
+    $rel = substr($image, strlen('uploads/'));
+  } else {
+    $rel = $image; // কেবল ফাইলনেম থাকলেও কাজ করবে
+  }
+
+  return rtrim(uploads_dir_abs(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $rel;
+}
+
+function unlink_with_variants_if_safe(string $absPath, array &$deletedLog): void {
+  $uploads = uploads_dir_abs();
+  if (!file_exists($absPath) || !is_file($absPath)) return;
+  if (!path_in_dir($absPath, $uploads)) return;
+  if (is_default_image_basename($absPath)) return; // default.jpg কখনো ডিলিট নয়
+
+  @unlink($absPath);
+  $deletedLog[] = $absPath;
+
+  // সম্ভাব্য ভ্যারিয়্যান্ট (_sm/_md/_lg বা -sm/-md/-lg)
+  $base = basename($absPath);
+  $dir  = dirname($absPath);
+  $name = pathinfo($base, PATHINFO_FILENAME);
+  $ext  = pathinfo($base, PATHINFO_EXTENSION);
+  foreach (['_sm','_md','_lg','-sm','-md','-lg'] as $suf) {
+    $cand = $dir . DIRECTORY_SEPARATOR . $name . $suf . ($ext ? '.'.$ext : '');
+    if (file_exists($cand) && is_file($cand)) {
+      @unlink($cand);
+      $deletedLog[] = $cand;
+    }
+  }
+}
+
+/* গ্যালারি ইমেজটি অন্য কোথাও (অন্য রো/পণ্য) ব্যবহার হচ্ছে কি না */
+function gallery_image_used_elsewhere(PDO $pdo, string $imageUrl, int $excludeRowId): bool {
+  $stm = $pdo->prepare("SELECT COUNT(*) FROM product_images WHERE image = ? AND id <> ?");
+  $stm->execute([$imageUrl, $excludeRowId]);
+  return ((int)$stm->fetchColumn()) > 0;
 }
 
 /* ========================
-   Delete a single image
+   Delete a single image (DB + FILE)
    ======================== */
 if (isset($_GET['delimg'])) {
   $imgId = (int)$_GET['delimg'];
   $pid   = (int)($_GET['id'] ?? 0);
+
   if ($imgId > 0 && $pid > 0) {
+    // 1) যে ইমেজটি মুছবো সেটির URL আগে বার করে নিন
+    $stm0 = $pdo->prepare("SELECT image FROM product_images WHERE id=? AND product_id=?");
+    $stm0->execute([$imgId, $pid]);
+    $imgUrl = (string)$stm0->fetchColumn();
+
+    // 2) DB থেকে গ্যালারি রো ডিলিট
     $pdo->prepare("DELETE FROM product_images WHERE id=? AND product_id=?")->execute([$imgId, $pid]);
 
-    // অবশিষ্ট ইমেজ থেকে main ঠিক করা
+    // 3) FILE unlink (default.jpg হলে নয়, এবং অন্য কোথাও ব্যবহার না হলে)
+    if ($imgUrl && !is_default_image_basename($imgUrl)) {
+      $alsoUsed = gallery_image_used_elsewhere($pdo, $imgUrl, $imgId);
+      if (!$alsoUsed) {
+        $abs = to_abs_upload_path($imgUrl);
+        $deleted = [];
+        if ($abs) unlink_with_variants_if_safe($abs, $deleted);
+      }
+    }
+
+    // 4) অবশিষ্ট ইমেজ থেকে main ঠিক করা
     $stm = $pdo->prepare("SELECT image FROM product_images WHERE product_id=? ORDER BY sort_order, id LIMIT 1");
     $stm->execute([$pid]);
     $main = $stm->fetchColumn();
@@ -41,6 +131,7 @@ if (isset($_GET['delimg'])) {
           ->execute([$pid, DEFAULT_IMG_URL]);
     }
   }
+
   header('Location: product_form.php?id='.$pid.'&updated=1'); exit;
 }
 
@@ -143,7 +234,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div>
     <a href="products.php" class="btn btn-secondary">পণ্য তালিকা</a>
     <?php if($edit): ?>
-      <a href="?del=<?php echo (int)$edit['id']; ?>" class="btn btn-danger ms-2" onclick="return confirm('Delete product?')">ডিলিট</a>
+      <!-- ✅ এখন থেকে DELETE → product_delete.php (POST + CSRF) -->
+      <form method="post"
+            action="/admin/product_delete.php"
+            class="d-inline"
+            onsubmit="return confirm('এই পণ্যটি ডিলিট করবেন? (ইমেজসহ মুছে যাবে)');">
+        <input type="hidden" name="id" value="<?php echo (int)$edit['id']; ?>">
+        <input type="hidden" name="csrf" value="<?php echo h($_SESSION['csrf']); ?>">
+        <button type="submit" class="btn btn-danger ms-2">ডিলিট</button>
+      </form>
     <?php endif; ?>
   </div>
 </div>
