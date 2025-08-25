@@ -163,7 +163,7 @@ if ($cart) {
           <tr>
             <!-- Product -->
             <td class="cell-prod" data-label="পণ্য">
-              <img class="pimg" src="<?php echo h($it['p']['image'] ?: 'assets/placeholder.jpg'); ?>" alt="">
+              <img class="pimg" src="<?php echo h($it['p']['image'] ?: 'uploads/default.jpg'); ?>" alt="">
               <div class="pname"><?php echo h($it['p']['name']); ?></div>
             </td>
 

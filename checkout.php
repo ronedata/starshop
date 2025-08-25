@@ -151,7 +151,7 @@ include __DIR__ . '/partials_header.php';
         <?php foreach ($items as $it): ?>
           <li class="row">
             <div class="itm">
-              <img class="thumb" src="<?php echo h($it['p']['image'] ?: 'assets/placeholder.jpg'); ?>" alt="">
+              <img class="thumb" src="<?php echo h($it['p']['image'] ?: 'uploads/default.jpg'); ?>" alt="">
               <div>
                 <div><?php echo h($it['p']['name']); ?></div>
                 <small>× <?php echo bn_num((int)$it['qty']); ?></small>

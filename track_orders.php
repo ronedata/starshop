@@ -184,13 +184,13 @@ include __DIR__ . '/partials_header.php';
           ?>
           <div class="item">
             <div class="head">
-              <a class="link" href="order_success.php?id=<?php echo (int)$r['id']; ?>">#<?php echo htmlspecialchars($r['order_code'] ?? $r['id']); ?></a>
+              <a class="link" href="success.php?id=<?php echo (int)$r['id']; ?>">#<?php echo htmlspecialchars($r['order_code'] ?? $r['id']); ?></a>
               <span class="<?php echo $stClass; ?>"><?php echo $stText; ?></span>
             </div>
             <div class="row"><div class="lbl">তারিখ</div><div class="val"><?php echo dateBD($r['created_at'] ?? ''); ?></div></div>
             <div class="row"><div class="lbl">নাম</div><div class="val"><?php echo htmlspecialchars($r['customer_name'] ?? ''); ?></div></div>
             <div class="row"><div class="lbl">মোট</div><div class="val"><?php echo moneyBD($total); ?></div></div>
-            <div class="row"><div class="lbl">ডিটেইল</div><div class="val"><a class="link" href="order_success.php?id=<?php echo (int)$r['id']; ?>">দেখুন →</a></div></div>
+            <div class="row"><div class="lbl">ডিটেইল</div><div class="val"><a class="link" href="success.php?id=<?php echo (int)$r['id']; ?>">দেখুন →</a></div></div>
           </div>
         <?php endforeach; ?>
       </div>
