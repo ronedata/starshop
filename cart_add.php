@@ -18,7 +18,7 @@ try {
   if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) { $_SESSION['cart'] = []; }
   $_SESSION['cart'][$pid] = ($_SESSION['cart'][$pid] ?? 0) + $qty;
 
-  $count = 0; foreach ($_SESSION['cart'] as $q) { $count += (int)$q; }
+  $count = cart_count();
 
   echo json_encode(['ok'=>true,'message'=>'কার্টে যোগ হয়েছে','count'=>$count]);
 } catch (Throwable $e) {

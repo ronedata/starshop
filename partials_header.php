@@ -195,7 +195,7 @@
       <a class="btn secondary cart-btn" href="<?php echo BASE_URL; ?>/cart.php" aria-label="কার্ট">
         <i class="fa-solid fa-cart-shopping"></i>
         <span class="label">কার্ট</span>
-        <span class="count" id="cartCount">0</span>
+        <span class="count" id="cartCount"><?php echo cart_count(); ?></span>
       </a>
     </div>
   </div>

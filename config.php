@@ -35,6 +35,10 @@ function get_pdo(){
 
 session_start();
 
+function cart_count(){
+  return array_sum(array_map('intval', $_SESSION['cart'] ?? []));
+}
+
 function h($s){ return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
 function money_bd($n){ return '৳'.number_format((float)$n, 0); }
 function today(){ return date('Y-m-d'); }
