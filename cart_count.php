@@ -1,3 +1,4 @@
-<?php require_once __DIR__.'/config.php'; header('Content-Type: application/json');
-$c = 0; if(!empty($_SESSION['cart'])) foreach($_SESSION['cart'] as $q){ $c += (int)$q; }
-echo json_encode(['count'=>$c]);
+<?php
+require_once __DIR__.'/config.php';
+header('Content-Type: application/json');
+echo json_encode(['count' => cart_count()]);

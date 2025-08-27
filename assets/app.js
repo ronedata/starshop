@@ -10,18 +10,6 @@ function refreshCartCount(){
 }
 document.addEventListener('DOMContentLoaded', refreshCartCount);
 
-function post(url,data){return fetch(url,{method:'POST',body:data}).then(r=>r.json())}
-function addToCart(pid, qty=1){
-  const fd = new FormData(); fd.append('product_id', pid); fd.append('qty', qty);
-  post('cart_add.php', fd).then(r=>{ alert(r.message||'কার্টে যোগ হয়েছে'); refreshCartCount(); });
-}
-function refreshCartCount(){
-  fetch('cart_count.php').then(r=>r.json()).then(r=>{
-    const el = document.querySelector('#cartCount'); if(el) el.textContent = r.count;
-  });
-}
-document.addEventListener('DOMContentLoaded', refreshCartCount);
-
 // ---- Search Auto-suggest ----
 (function(){
   const input  = document.getElementById('searchInput');
