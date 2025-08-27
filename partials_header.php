@@ -149,6 +149,7 @@
 <?php
   // ক্যাটেগরি/কোয়েরি রিড
   $pdo      = get_pdo();
+  $app_name = $pdo->query("SELECT value FROM settings WHERE `key`='store_name'")->fetch()['value'] ?? 'ABC';
   $cats     = $pdo->query("SELECT id, name FROM categories ORDER BY name")->fetchAll();
   $qParam   = trim($_GET['q']   ?? '');
   $catParam = $_GET['cat'] ?? '';           // '' হলে All
@@ -158,7 +159,7 @@
 <header class="header">
   <div class="bar container">
     <div class="brand">
-      <a href="<?php echo BASE_URL; ?>/index.php"><?php echo h(APP_NAME); ?></a>
+      <a href="<?php echo BASE_URL; ?>/index.php"><?php echo $app_name; ?></a>
     </div>
 
     <!-- সার্চ + ক্যাটেগরি -->

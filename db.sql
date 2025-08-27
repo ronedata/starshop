@@ -92,6 +92,18 @@ CREATE TABLE IF NOT EXISTS `product_images` (
     FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `product_videos` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `product_id` INT UNSIGNED NOT NULL,
+  `type` ENUM('file','youtube') NOT NULL,
+  `url` VARCHAR(500) NOT NULL,
+  `sort_order` INT DEFAULT 0,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_product_id` (`product_id`),
+  UNIQUE KEY `u_product_type` (`product_id`,`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 7) settings (no dependencies)
 CREATE TABLE IF NOT EXISTS `settings` (
   `key` varchar(100) NOT NULL,

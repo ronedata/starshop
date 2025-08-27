@@ -41,19 +41,23 @@ function status_view($raw){
   return $map[$s] ?? [($raw ?: 'অজানা'), 'badge gray'];
 }
 
-/* ========== Totals (fallback friendly) ========== */
+/* ========== Totals (respect DB value 0) ========== */
 $ship_area_raw = strtolower(trim($o['shipping_area'] ?? $o['shipping_area_code'] ?? ''));
-$ship_fee      = (float)($o['shipping_fee'] ?? $o['delivery_fee'] ?? $o['delivery_charge'] ?? 0);
+$ship_fee_raw  = $o['shipping_fee'] ?? $o['delivery_fee'] ?? $o['delivery_charge'] ?? null;
 
-if ($ship_fee <= 0) {
+/* ship_fee: DB-তে থাকলে যেটা আছে সেটাই ব্যবহার (০ সহ) */
+if ($ship_fee_raw === null || $ship_fee_raw === '') {
+  // fallback to settings
   if (in_array($ship_area_raw, ['nationwide','outside_dhaka','outside-dhaka'])) {
     $ship_fee = $ship_nat;
   } else {
-    // default dhaka
     $ship_fee = $ship_dhaka;
     $ship_area_raw = $ship_area_raw ?: 'dhaka';
   }
+} else {
+  $ship_fee = (float)$ship_fee_raw; // 0 হলে 그대로 থাকবে => Free Shipping
 }
+
 $ship_area_label = (in_array($ship_area_raw, ['nationwide','outside_dhaka','outside-dhaka'])) ? 'সারা দেশে' : 'ঢাকার ভিতরে';
 
 $grand_total = (float)($o['grand_total'] ?? $o['total'] ?? $o['payable'] ?? $o['amount'] ?? 0);
@@ -97,6 +101,7 @@ include __DIR__.'/partials_header.php';
     background:#f8fafc; border:1px solid var(--border); font-weight:700;
   }
   #od .chip.cod{ background:#ecfeff; border-color:#bae6fd; color:#0369a1; }
+  #od .chip.free{ background:#ecfdf5; border-color:#d1fae5; color:#065f46; } /* Free Shipping look */
 
   /* badges for status */
   .badge{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--border); border-radius:999px; font-weight:700; background:#fff; }
@@ -167,7 +172,6 @@ include __DIR__.'/partials_header.php';
           </div>
         </div>
 
-        <!-- নতুন: অর্ডার তারিখ -->
         <?php if(!empty($o['created_at'])): ?>
         <div class="row">
           <div class="lbl">তারিখ</div>
@@ -175,27 +179,28 @@ include __DIR__.'/partials_header.php';
         </div>
         <?php endif; ?>
 
-        <!-- নতুন: স্ট্যাটাস -->
         <div class="row">
           <div class="lbl">স্ট্যাটাস</div>
           <div><span class="<?php echo $status_class; ?>"><?php echo $status_text; ?></span></div>
         </div>
 
-        <!-- নতুন: শিপিং (এলাকা + ফি) -->
+        <!-- শিপিং: Free Shipping হলে শুধু Free Shipping দেখাবে -->
         <div class="row">
           <div class="lbl">শিপিং</div>
           <div>
-            <?php echo $ship_area_label; ?> (<?php echo bn_money($ship_fee); ?>)
+            <?php if ($ship_fee <= 0): ?>
+              <span class="chip free">Free Shipping</span>
+            <?php else: ?>
+              <?php echo $ship_area_label; ?> (<?php echo bn_money($ship_fee); ?>)
+            <?php endif; ?>
           </div>
         </div>
 
-        <!-- নতুন: সাবটোটাল -->
         <div class="row">
           <div class="lbl">সাবটোটাল</div>
           <div><?php echo bn_money($subtotal); ?></div>
         </div>
 
-        <!-- নতুন: মোট -->
         <div class="row">
           <div class="lbl">মোট</div>
           <div><strong><?php echo bn_money($grand_total); ?></strong></div>
