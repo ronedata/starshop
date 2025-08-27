@@ -1,12 +1,12 @@
 <?php
-// admin/orders.php (Mobile + PC friendly, header-safe redirect)
-require_once __DIR__.'/../config.php';
-require_once __DIR__.'/auth.php';
+// admin/orders.php — Status dropdown works (auto-submit), mobile+PC friendly
+require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/auth.php';
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
 $pdo = get_pdo();
 
-/* -------- Helpers (fallback) -------- */
+/* ---------- Helpers (fallback, to avoid redeclare) ---------- */
 if (!function_exists('h')) {
   function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 }
@@ -16,27 +16,38 @@ if (!function_exists('money_bd')) {
 if (!function_exists('today')) {
   function today(){ return date('Y-m-d'); }
 }
-
-/* -------- Allowed statuses -------- */
+function bn_digits($s){
+  return strtr((string)$s, ['0'=>'০','1'=>'১','2'=>'২','3'=>'৩','4'=>'৪','5'=>'৫','6'=>'৬','7'=>'৭','8'=>'৮','9'=>'৯']);
+}
+function dateBD($ts){
+  // d M, Y g:i A → শুধুই ডিজিটগুলো বাংলা হবে
+  return bn_digits(date('d M, Y g:i A', is_numeric($ts)? (int)$ts : strtotime($ts)));
+}
+/* ---------- Allowed statuses ---------- */
 $STATUSES = ['pending','processing','shipped','delivered','cancelled'];
 
-/* -------- Handle Status Update (POST) BEFORE any HTML -------- */
+/* ---------- Handle Status Update (POST before any HTML) ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
   $oid    = (int)($_POST['order_id'] ?? 0);
   $status = $_POST['status'] ?? '';
-  $return = $_POST['return'] ?? '';
+  $return = $_POST['return'] ?? ''; // keep filters via querystring
+
   if ($oid > 0 && in_array($status, $STATUSES, true)) {
     $stm = $pdo->prepare("UPDATE orders SET status=? WHERE id=?");
     $stm->execute([$status, $oid]);
+    $_SESSION['flash'] = ['ok'=>true, 'message'=>'স্ট্যাটাস আপডেট হয়েছে।'];
+  } else {
+    $_SESSION['flash'] = ['ok'=>false, 'message'=>'স্ট্যাটাস আপডেট ব্যর্থ।'];
   }
-  header('Location: orders.php'.($return ? ('?'.$return) : '')); exit;
+  header('Location: orders.php'.($return ? ('?'.$return) : ''));
+  exit;
 }
 
-/* -------- Filters (GET) -------- */
+/* ---------- Filters (GET) ---------- */
 $q      = trim($_GET['q'] ?? '');
 $from   = $_GET['from'] ?? today();
 $to     = $_GET['to']   ?? today();
-$fstat  = $_GET['status'] ?? 'all'; // all | in $STATUSES
+$fstat  = $_GET['status'] ?? 'all';
 
 $where  = "DATE(created_at) BETWEEN ? AND ?";
 $params = [$from, $to];
@@ -50,13 +61,13 @@ if ($fstat !== 'all' && in_array($fstat, $STATUSES, true)) {
   $params[] = $fstat;
 }
 
-/* -------- Fetch rows -------- */
+/* ---------- Fetch rows ---------- */
 $sql = "SELECT * FROM orders WHERE $where ORDER BY created_at DESC";
 $stm = $pdo->prepare($sql);
 $stm->execute($params);
 $rows = $stm->fetchAll();
 
-/* -------- Badge class -------- */
+/* ---------- Badge & dropdown class helpers ---------- */
 function status_badge_class($s){
   switch ($s) {
     case 'pending':    return 'bg-warning text-dark';
@@ -67,13 +78,23 @@ function status_badge_class($s){
     default:           return 'bg-light text-dark';
   }
 }
+function status_option_class($s){
+  switch ($s) {
+    case 'pending':    return 'text-warning';
+    case 'processing': return 'text-info';
+    case 'shipped':    return 'text-primary';
+    case 'delivered':  return 'text-success';
+    case 'cancelled':  return 'text-secondary';
+    default:           return 'text-body';
+  }
+}
 
-/* -------- Now load layout header (HTML starts here) -------- */
-require_once __DIR__.'/header.php';
+/* ---------- Now render page ---------- */
+require_once __DIR__ . '/header.php';
 ?>
 <style>
-  /* Mobile card-view for table */
-  @media (max-width: 576px){
+  /* Mobile card view */
+  @media (max-width:576px){
     .table-responsive{border:0}
     table.table{display:block}
     table.table thead{display:none}
@@ -90,20 +111,26 @@ require_once __DIR__.'/header.php';
       content:attr(data-label);
       font-weight:600; color:#64748b; min-width:120px; text-align:left;
     }
-    /* Action buttons full-width on mobile */
-    .td-actions .btn{ width:100%; }
     .td-actions{ display:flex; flex-direction:column; gap:8px; }
-    /* Status section wraps nicely */
-    .status-inline{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-    .status-inline .form-select{ min-width:140px; }
+    .td-actions .btn{ width:100%; }
+    .status-wrap{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .status-wrap .form-select{ min-width:150px; }
   }
-  /* Small UX touches */
-  .badge-status{ min-width:94px; display:inline-flex; justify-content:center; align-items:center; }
+  .badge-status{ min-width:100px; display:inline-flex; justify-content:center; align-items:center; }
 </style>
+
+<?php if(!empty($_SESSION['flash'])): $f=$_SESSION['flash']; unset($_SESSION['flash']); ?>
+  <div class="alert alert-<?php echo $f['ok']?'success':'danger'; ?> alert-dismissible fade show" role="alert">
+    <?php echo h($f['message']); ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+<?php endif; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h5 class="m-0">অর্ডার ব্যবস্থাপনা</h5>
-  <a class="btn btn-outline-secondary" href="orders.php?from=<?php echo h(today()); ?>&to=<?php echo h(today()); ?>&status=all">আজকের অর্ডার</a>
+  <a class="btn btn-outline-secondary" href="orders.php?from=<?php echo h(today()); ?>&to=<?php echo h(today()); ?>&status=all">
+    আজকের অর্ডার
+  </a>
 </div>
 
 <form class="row g-2 mb-3" method="get">
@@ -140,7 +167,7 @@ require_once __DIR__.'/header.php';
           <th>গ্রাহক</th>
           <th>মোবাইল</th>
           <th class="text-end">মোট</th>
-          <th style="min-width:220px">স্ট্যাটাস</th>
+          <th style="min-width:240px">স্ট্যাটাস</th>
           <th>তারিখ</th>
           <th class="text-end">অ্যাকশন</th>
         </tr>
@@ -153,56 +180,39 @@ require_once __DIR__.'/header.php';
           <td data-label="গ্রাহক" class="fw-semibold"><?php echo h($o['customer_name']); ?></td>
           <td data-label="মোবাইল"><?php echo h($o['mobile']); ?></td>
           <td data-label="মোট" class="text-end"><?php echo money_bd($o['total']); ?></td>
-		<td data-label="স্ট্যাটাস">
-		  <?php
-			// ডট রং ম্যাপ
-			$dotMap = [
-			  'pending'    => '#f59e0b',
-			  'processing' => '#06b6d4',
-			  'shipped'    => '#3b82f6',
-			  'delivered'  => '#16a34a',
-			  'cancelled'  => '#6b7280',
-			];
-			$dotColor = $dotMap[$o['status']] ?? '#94a3b8';
-		  ?>
-		  <div class="d-flex align-items-center gap-2 flex-wrap">
-			<!-- বর্তমান স্ট্যাটাস ব্যাজ -->
-			<span class="badge rounded-pill px-3 py-2 badge-status <?php echo status_badge_class($o['status']); ?> status-pill">
-			  <span class="status-dot" style="background:<?php echo $dotColor; ?>"></span>
-			  <?php echo ucfirst(h($o['status'])); ?>
-			</span>
 
-			<!-- সুন্দর ড্রপডাউন: ক্লিক করে সঙ্গে সঙ্গে আপডেট -->
-			<div class="btn-group">
-			  <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
-					  data-bs-toggle="dropdown" aria-expanded="false">
-				পরিবর্তন
-			  </button>
-			  <div class="dropdown-menu dropdown-menu-end p-0">
-				<form method="post" class="py-1 px-1">
-				  <input type="hidden" name="order_id" value="<?php echo (int)$o['id']; ?>">
-				  <input type="hidden" name="return"   value="<?php echo h($_SERVER['QUERY_STRING'] ?? ''); ?>">
-				  <input type="hidden" name="update_status" value="1">
-				  <?php foreach($STATUSES as $s):
-						$c = $dotMap[$s] ?? '#94a3b8';
-						$active = ($o['status'] === $s);
-				  ?>
-					<button type="submit"
-							name="status" value="<?php echo h($s); ?>"
-							class="dropdown-item d-flex align-items-center gap-2 <?php echo $active?'active':''; ?>">
-					  <span class="status-dot" style="background:<?php echo $c; ?>"></span>
-					  <?php echo ucfirst($s); ?>
-					  <?php if ($active): ?><span class="ms-auto">✔</span><?php endif; ?>
-					</button>
-				  <?php endforeach; ?>
-				</form>
-			  </div>
-			</div>
-		  </div>
-		</td>
+          <td data-label="স্ট্যাটাস">
+            <div class="status-wrap">
+              <span class="badge badge-status <?php echo status_badge_class($o['status']); ?>">
+                <?php echo ucfirst(h($o['status'])); ?>
+              </span>
 
-          <td data-label="তারিখ"><?php echo h($o['created_at']); ?></td>
+              <!-- Inline form: auto-submit on change -->
+              <form method="post" class="d-flex gap-2 align-items-center m-0">
+                <input type="hidden" name="order_id" value="<?php echo (int)$o['id']; ?>">
+                <input type="hidden" name="return"   value="<?php echo $returnQS; ?>">
+                <select name="status" class="form-select form-select-sm"
+                        onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit();">
+                  <?php foreach($STATUSES as $s): ?>
+                    <option class="<?php echo status_option_class($s); ?>"
+                            value="<?php echo h($s); ?>"
+                            <?php echo $o['status']===$s?'selected':''; ?>>
+                      <?php echo ucfirst($s); ?>
+                    </option>
+                  <?php endforeach; ?>
+                </select>
+                <button class="btn btn-sm btn-primary" name="update_status" value="1" type="submit">Save</button>
+                <input type="hidden" name="update_status" value="1">
+              </form>
+            </div>
+          </td>
+
+          <td data-label="তারিখ"><?php echo dateBD(h($o['created_at'])); ?></td>
           <td data-label="অ্যাকশন" class="text-end td-actions">
+			<a class="btn btn-sm btn-outline-warning"
+			   href="order_edit.php?id=<?php echo (int)$o['id']; ?>&return=<?php echo urlencode($_SERVER['QUERY_STRING'] ?? ''); ?>">
+			  Edit
+			</a>
             <a class="btn btn-sm btn-outline-secondary" target="_blank" href="order_print.php?id=<?php echo (int)$o['id']; ?>">Print</a>
             <a class="btn btn-sm btn-outline-primary" href="order_view.php?id=<?php echo (int)$o['id']; ?>">View</a>
           </td>
@@ -216,4 +226,22 @@ require_once __DIR__.'/header.php';
   </div>
 </div></div>
 
-<?php require __DIR__.'/footer.php'; ?>
+<script>
+// সেফ: কিছু ব্রাউজারে requestSubmit না থাকলে submit ব্যবহার
+document.querySelectorAll('form select[name="status"]').forEach(function(sel){
+  sel.addEventListener('change', function(){
+    var f = sel.form;
+    if (!f) return;
+    // hidden input ensure (older Safari ইত্যাদি)
+    if (!f.querySelector('input[name="update_status"]')) {
+      var h = document.createElement('input');
+      h.type='hidden'; h.name='update_status'; h.value='1';
+      f.appendChild(h);
+    }
+    if (f.requestSubmit) f.requestSubmit();
+    else f.submit();
+  });
+});
+</script>
+
+<?php require __DIR__ . '/footer.php'; ?>

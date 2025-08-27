@@ -1,12 +1,20 @@
 <?php
 // admin/header.php
-require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/auth.php';
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
-// ছোট্ট fallback helper (যদি config.php তে h() না থাকে)
+/* Fallback esc helper (যদি গ্লোবালি সংজ্ঞায়িত না থাকে) */
 if (!function_exists('h')) {
   function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+}
+
+/* Active class helper */
+$SELF = basename($_SERVER['PHP_SELF']);
+function is_active($files){
+  $self = basename($_SERVER['PHP_SELF']);
+  if (is_array($files)) { return in_array($self, $files, true) ? 'active' : ''; }
+  return $self === $files ? 'active' : '';
 }
 ?>
 <!doctype html>
@@ -14,161 +22,151 @@ if (!function_exists('h')) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin - <?php echo defined('APP_NAME') ? h(APP_NAME) : 'Dashboard'; ?></title>
+  <title>Admin - <?php echo h(defined('APP_NAME') ? APP_NAME : 'Shop'); ?></title>
 
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
+  <!-- Font Awesome (CDN) -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
   <style>
     :root{
-      --sb-bg:#0f172a;    /* sidebar bg */
-      --sb-bg-2:#1e293b;  /* hover */
-      --sb-fg:#cbd5e1;    /* text */
-      --sb-fg-2:#fff;     /* active */
-      --sb-w:240px;
+      --sidebar-bg:#0f172a;
+      --sidebar-hover:#1e293b;
+      --sidebar-text:#cbd5e1;
+      --sidebar-active:#ffffff;
     }
-    html,body{height:100%}
-    body{overflow-x:hidden}
-
-    /* ======= Layout ======= */
+    body{overflow-x:hidden;background:#f6f8fb}
     .layout{
-      display:grid;
-      grid-template-columns: var(--sb-w) 1fr;
-      min-height:100vh;
+      display:grid; grid-template-columns:240px 1fr; min-height:100vh;
     }
-    .content{ padding: 1rem; }
-    @media (min-width: 992px){
-      .content{ padding: 1.25rem 1.5rem; }
+    /* Topbar (mobile) */
+    .topbar{
+      background:var(--sidebar-bg); color:#fff; height:56px;
+      display:flex; align-items:center; padding:0 12px;
+    }
+    .topbar .btn-nav{
+      border:0; background:transparent; color:#fff; font-size:1.25rem;
     }
 
-    /* ======= Sidebar ======= */
+    /* Sidebar */
     .sidebar{
-      background:var(--sb-bg);
-      color:#fff;
-      position:sticky; top:0; height:100vh;
-      padding:16px; z-index:1041; /* desktop z-index */
-    }
-    .sidebar a{
-      color:var(--sb-fg);
-      text-decoration:none;
-      display:block;
-      padding:8px 12px;
-      border-radius:8px;
-      margin-bottom:6px;
-      transition: background .18s ease, color .18s ease;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    .sidebar a.active, .sidebar a:hover{
-      background:var(--sb-bg-2);
-      color:var(--sb-fg-2);
+      background:var(--sidebar-bg); color:#fff; position:sticky; top:0; height:100vh; padding:16px;
     }
     .brand{
-      color:#fff; font-weight:700; display:block; margin-bottom:12px;
+      color:#fff; font-weight:700; display:flex; align-items:center; gap:8px;
+      text-decoration:none; margin-bottom:14px;
     }
+    .brand i{color:#60a5fa}
 
-    /* ======= Topbar (mobile only) ======= */
-    .topbar{
-      background:var(--sb-bg);
-      color:#fff;
-      height:56px;
-      display:flex;
-      align-items:center;
-      padding:0 12px;
-      position:sticky; top:0; z-index:1042;
+    .navy a{
+      color:var(--sidebar-text); text-decoration:none; display:flex; align-items:center; gap:10px;
+      padding:10px 12px; border-radius:10px; margin-bottom:6px; font-weight:600;
     }
-    .topbar button{ border:0; background:transparent; color:#fff; font-size:22px; line-height:1; }
-    .topbar .brand-mini{ font-weight:600; margin-left:8px; }
+    .navy a i{ width:1.25em; text-align:center; }
+    .navy a:hover{ background:var(--sidebar-hover); color:#fff; }
+    .navy a.active{ background:var(--sidebar-hover); color:var(--sidebar-active); }
 
-    /* ======= Responsive Sidebar (off-canvas on mobile) ======= */
-    @media (max-width: 992px){
-      .layout{ grid-template-columns: 1fr; }
+    /* Mobile: sidebar becomes offcanvas-like */
+    @media(max-width:992px){
+      .layout{ grid-template-columns:1fr; }
       .sidebar{
-        position:fixed;
-        left:-260px;  /* hidden */
-        top:0;
-        width:var(--sb-w);
-        height:100vh;
-        transition: left .25s ease;
-        z-index:1045; /* above backdrop */
-        display:block !important; /* ensure visible even if any d-none added elsewhere */
+        position:fixed; left:-260px; top:56px; height:calc(100vh - 56px);
+        width:240px; z-index:1040; transition:left .25s ease; border-right:1px solid rgba(255,255,255,.08);
       }
       .sidebar.show{ left:0; }
-      .content{ padding-top: 56px; } /* leave space for mobile topbar */
+      .content{ padding-top:56px; }
+      .backdrop{
+        content:""; position:fixed; inset:56px 0 0 0; background:rgba(0,0,0,.35);
+        display:none; z-index:1039;
+      }
+      .backdrop.show{ display:block; }
     }
 
-    /* ======= Backdrop for mobile ======= */
-    #sbBackdrop{
-      position:fixed; inset:0;
-      background:rgba(0,0,0,.35);
-      z-index:1044;
-      opacity:0; visibility:hidden;
-      transition: opacity .2s ease, visibility .2s ease;
-    }
-    #sbBackdrop.show{ opacity:1; visibility:visible; }
-
-    .thumb{width:64px;height:64px;object-fit:cover;border:1px solid #e5e7eb;border-radius:6px}
+    /* Utilities */
+    .thumb{width:64px;height:64px;object-fit:cover;border:1px solid #e5e7eb;border-radius:6px;background:#fff}
   </style>
 </head>
 <body>
 
 <!-- Topbar (mobile) -->
 <div class="topbar d-lg-none">
-  <button type="button" aria-label="সাইডবার টগল" onclick="toggleSidebar()">☰</button>
-  <div class="brand-mini ms-2">Admin Panel</div>
-  <div class="ms-auto small">Hi, <?php echo h($_SESSION['admin_username'] ?? ''); ?></div>
+  <button class="btn-nav" id="btnSidebarToggle" aria-label="Toggle menu">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+  <div class="ms-2 fw-semibold d-flex align-items-center gap-2">
+    <i class="fa-solid fa-gauge-high"></i>
+    <span>Admin Panel</span>
+  </div>
+  <div class="ms-auto small d-flex align-items-center gap-2">
+    <i class="fa-regular fa-user"></i>
+    <span><?php echo h($_SESSION['admin_username'] ?? ''); ?></span>
+  </div>
 </div>
 
 <div class="layout">
   <!-- Sidebar -->
   <aside class="sidebar">
-    <a class="brand" href="<?php echo h((defined('BASE_URL')?BASE_URL:'') . '/admin/index.php'); ?>">
-      ⭐ <?php echo defined('APP_NAME') ? h(APP_NAME) : 'App'; ?>
+    <a class="brand" href="<?php echo BASE_URL; ?>/admin/index.php">
+      <i class="fa-solid fa-star"></i>
+      <span><?php echo h(defined('APP_NAME') ? APP_NAME : 'Shop'); ?></span>
     </a>
 
-    <?php
-      $self = basename($_SERVER['PHP_SELF']);
-      $link = function($file, $text){
-        $is = basename($_SERVER['PHP_SELF']) === $file ? 'active' : '';
-        $href = (defined('BASE_URL')?BASE_URL:'') . '/admin/' . $file;
-        echo '<a class="'.$is.'" href="'.h($href).'">'.h($text).'</a>';
-      };
-      $link('index.php',      'ড্যাশবোর্ড');
-      $link('products.php',   'পণ্য ব্যবস্থাপনা');
-      $link('categories.php', 'ক্যাটেগরি');
-      $link('orders.php',     'অর্ডার ব্যবস্থাপনা');
-      $link('users.php',      'অ্যাডমিন ইউজার');
-      $link('stock_report.php','স্টক রিপোর্ট');
-      $link('settings.php',   'সেটিংস');
-    ?>
-    <hr>
-    <a href="<?php echo h((defined('BASE_URL')?BASE_URL:'') . '/admin/logout.php'); ?>">লগআউট</a>
+    <nav class="navy">
+      <a class="<?php echo is_active('index.php'); ?>"
+         href="<?php echo BASE_URL; ?>/admin/index.php">
+        <i class="fa-solid fa-gauge-high"></i>
+        <span>ড্যাশবোর্ড</span>
+      </a>
+
+      <a class="<?php echo is_active(['products.php','product_form.php']); ?>"
+         href="<?php echo BASE_URL; ?>/admin/products.php">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <span>পণ্য ব্যবস্থাপনা</span>
+      </a>
+
+      <a class="<?php echo is_active('categories.php'); ?>"
+         href="<?php echo BASE_URL; ?>/admin/categories.php">
+        <i class="fa-solid fa-tags"></i>
+        <span>ক্যাটেগরি</span>
+      </a>
+
+      <a class="<?php echo is_active(['orders.php','order_view.php','order_print.php']); ?>"
+         href="<?php echo BASE_URL; ?>/admin/orders.php">
+        <i class="fa-solid fa-list-check"></i>
+        <span>অর্ডার ব্যবস্থাপনা</span>
+      </a>
+
+      <a class="<?php echo is_active('users.php'); ?>"
+         href="<?php echo BASE_URL; ?>/admin/users.php">
+        <i class="fa-solid fa-users-gear"></i>
+        <span>অ্যাডমিন ইউজার</span>
+      </a>
+
+      <a class="<?php echo is_active('stock_report.php'); ?>"
+         href="<?php echo BASE_URL; ?>/admin/stock_report.php">
+        <i class="fa-solid fa-warehouse"></i>
+        <span>স্টক রিপোর্ট</span>
+      </a>
+
+      <a class="<?php echo is_active('settings.php'); ?>"
+         href="<?php echo BASE_URL; ?>/admin/settings.php">
+        <i class="fa-solid fa-gear"></i>
+        <span>সেটিংস</span>
+      </a>
+
+      <hr class="border-secondary">
+
+      <a href="<?php echo BASE_URL; ?>/admin/logout.php">
+        <i class="fa-solid fa-right-from-bracket"></i>
+        <span>লগআউট</span>
+      </a>
+    </nav>
   </aside>
 
-  <!-- Backdrop (mobile) -->
-  <div id="sbBackdrop" class="d-lg-none" onclick="toggleSidebar()"></div>
+  <!-- Backdrop for mobile -->
+  <div id="sidebarBackdrop" class="backdrop d-lg-none"></div>
 
-  <!-- Page Content Start -->
+  <!-- Content -->
   <main class="content p-3 p-lg-4">
-  
-<script>
-  // Sidebar toggle + backdrop (works without Bootstrap JS)
-  function toggleSidebar(){
-    const sb = document.querySelector('.sidebar');
-    const bd = document.getElementById('sbBackdrop');
-    if(!sb || !bd) return;
-    sb.classList.toggle('show');
-    bd.classList.toggle('show');
-  }
-
-  // Close on ESC (mobile)
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape'){
-      const sb = document.querySelector('.sidebar');
-      const bd = document.getElementById('sbBackdrop');
-      if(sb?.classList.contains('show')){
-        sb.classList.remove('show');
-        bd?.classList.remove('show');
-      }
-    }
-  });
-</script>

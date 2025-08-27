@@ -10,6 +10,13 @@ if (!function_exists('h')) {
 if (!function_exists('money_bd')) {
   function money_bd($n){ $n=(float)$n; $n=round($n); return '৳'.number_format($n,0,'',','); }
 }
+function bn_digits($s){
+  return strtr((string)$s, ['0'=>'০','1'=>'১','2'=>'২','3'=>'৩','4'=>'৪','5'=>'৫','6'=>'৬','7'=>'৭','8'=>'৮','9'=>'৯']);
+}
+function dateBD($ts){
+  // d M, Y g:i A → শুধুই ডিজিটগুলো বাংলা হবে
+  return bn_digits(date('d M, Y g:i A', is_numeric($ts)? (int)$ts : strtotime($ts)));
+}
 function status_badge_class($s){
   switch ($s) {
     case 'pending':    return 'bg-warning text-dark';
@@ -132,7 +139,7 @@ if ($created) { $ts = strtotime($created); if ($ts) $created = date('Y-m-d H:i',
           <dd class="col-7 col-sm-8"><?php echo h($o['payment_method'] ?? ''); ?></dd>
 
           <dt class="col-5 col-sm-4">তারিখ</dt>
-          <dd class="col-7 col-sm-8"><?php echo h($created); ?></dd>
+          <dd class="col-7 col-sm-8"><?php echo dateBD(h($created)); ?></dd>
         </dl>
       </div>
     </div>

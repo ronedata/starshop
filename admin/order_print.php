@@ -10,6 +10,13 @@ if (!function_exists('h')) {
 if (!function_exists('money_bd')) {
   function money_bd($n){ $n=(float)$n; $n=round($n); return '৳'.number_format($n,0,'',','); }
 }
+function bn_digits($s){
+  return strtr((string)$s, ['0'=>'০','1'=>'১','2'=>'২','3'=>'৩','4'=>'৪','5'=>'৫','6'=>'৬','7'=>'৭','8'=>'৮','9'=>'৯']);
+}
+function dateBD($ts){
+  // d M, Y g:i A → শুধুই ডিজিটগুলো বাংলা হবে
+  return bn_digits(date('d M, Y g:i A', is_numeric($ts)? (int)$ts : strtotime($ts)));
+}
 function status_badge_class($s){
   switch ($s) {
     case 'pending':    return 'bg-warning text-dark';
@@ -125,7 +132,7 @@ if ($created) {
     </div>
     <table class="meta small">
       <tr><td class="text-muted">ইনভয়েস</td><td>#<?php echo h($o['order_code'] ?? $o['id']); ?></td></tr>
-      <tr><td class="text-muted">তারিখ</td><td><?php echo h($created); ?></td></tr>
+      <tr><td class="text-muted">তারিখ</td><td><?php echo dateBD(h($created)); ?></td></tr>
       <tr><td class="text-muted">স্ট্যাটাস</td>
           <td><span class="badge <?php echo status_badge_class($o['status'] ?? ''); ?>"><?php echo ucfirst(h($o['status'] ?? '')); ?></span></td></tr>
     </table>
