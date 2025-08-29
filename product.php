@@ -14,6 +14,7 @@ $stm = $pdo->prepare("
 $stm->execute([$id]);
 $p = $stm->fetch();
 if (!$p) { http_response_code(404); echo "Not Found"; exit; }
+increment_page_view('product');
 
 /* ---------- Stock flags ---------- */
 $stock     = max(0, (int)($p['stock'] ?? 0));

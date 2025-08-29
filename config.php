@@ -35,10 +35,6 @@ function get_pdo(){
 
 session_start();
 
-function cart_count(){
-  return array_sum(array_map('intval', $_SESSION['cart'] ?? []));
-}
-
 function h($s){ return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
 function money_bd($n){ return '৳'.number_format((float)$n, 0); }
 function today(){ return date('Y-m-d'); }
@@ -61,5 +57,18 @@ function save_setting($key, $value){
   $pdo = get_pdo();
   $pdo->prepare("INSERT INTO settings(`key`,`value`) VALUES(?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)")
       ->execute([$key, $value]);
+}
+// ---------- page view helpers ----------
+function increment_page_view($page){
+  $pdo = get_pdo();
+  $pdo->prepare("INSERT INTO page_views(page, views) VALUES(?,1) ON DUPLICATE KEY UPDATE views=views+1")
+      ->execute([$page]);
+}
+
+function get_page_views($page){
+  $pdo = get_pdo();
+  $stm = $pdo->prepare("SELECT views FROM page_views WHERE page=? LIMIT 1");
+  $stm->execute([$page]);
+  return (int)($stm->fetchColumn() ?: 0);
 }
 ?>

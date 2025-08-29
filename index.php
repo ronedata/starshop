@@ -1,4 +1,8 @@
-<?php require_once __DIR__.'/config.php'; ?>
+
+<?php
+	require_once __DIR__.'/config.php';
+	increment_page_view('index');
+?>
 <?php include __DIR__.'/partials_header.php'; ?>
 
 <?php
