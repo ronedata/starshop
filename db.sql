@@ -110,9 +110,12 @@ CREATE TABLE IF NOT EXISTS `settings` (
   `value` text DEFAULT NULL,
   PRIMARY KEY (`key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-
-
+-- 8) page_views
+CREATE TABLE IF NOT EXISTS `page_views` (
+  `page` varchar(100) NOT NULL,
+  `views` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`page`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- data.sql
 -- Inserts only (assumes schema.sql already ran)

@@ -43,6 +43,15 @@ $stm->execute([$td]); $pending_today = (int)$stm->fetchColumn();
 $stm = $pdo->prepare("SELECT COUNT(*) FROM products WHERE stock <= ?");
 $stm->execute([$LOW_STOCK]); $low_stock_count = (int)$stm->fetchColumn();
 
+/* Page view counts */
+$views = [];
+try {
+  $stm = $pdo->query("SELECT page, views FROM page_views WHERE page IN ('index','product')");
+  $views = $stm->fetchAll(PDO::FETCH_KEY_PAIR);
+} catch (Throwable $e) {}
+$index_views   = (int)($views['index']   ?? 0);
+$product_views = (int)($views['product'] ?? 0);
+
 /* ---- Recent orders (today) ---- */
 $limit = 15;
 $stm = $pdo->prepare("SELECT id, order_code, customer_name, mobile, total, status, created_at
@@ -162,6 +171,27 @@ function status_badge_class($s){
         <div>
           <div class="text-muted small">লো-স্টক (≤ <?php echo (int)$LOW_STOCK; ?>)</div>
           <div class="kpi-value"><?php echo $low_stock_count; ?></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Page Views -->
+<div class="card mb-3">
+  <div class="card-body">
+    <h6 class="mb-3">Page Views</h6>
+    <div class="row">
+      <div class="col-12 col-md-6">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Home (index.php)</span>
+          <span class="fw-bold"><?=$index_views?></span>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Product (product.php)</span>
+          <span class="fw-bold"><?=$product_views?></span>
         </div>
       </div>
     </div>
