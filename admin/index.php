@@ -43,6 +43,15 @@ $stm->execute([$td]); $pending_today = (int)$stm->fetchColumn();
 $stm = $pdo->prepare("SELECT COUNT(*) FROM products WHERE stock <= ?");
 $stm->execute([$LOW_STOCK]); $low_stock_count = (int)$stm->fetchColumn();
 
+/* Page views (top pages) */
+$page_views = [];
+try {
+  $stm = $pdo->query("SELECT page, views FROM page_views ORDER BY views DESC LIMIT 10");
+  $page_views = $stm->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+  $page_views = [];
+}
+
 /* ---- Recent orders (today) ---- */
 $limit = 15;
 $stm = $pdo->prepare("SELECT id, order_code, customer_name, mobile, total, status, created_at
@@ -113,6 +122,60 @@ function status_badge_class($s){
     .badge-status { margin-bottom:6px; }
   }
   .badge-status{ min-width:94px; display:inline-flex; align-items:center; justify-content:center; }
+
+  /* ===========================
+     Page Views (Responsive)
+     =========================== */
+  .pageviews .table-responsive{ border:0; }
+
+  /* Desktop polish */
+  .pageviews table.table th,
+  .pageviews table.table td{
+    vertical-align: middle;
+  }
+  .pageviews table.table td .pv-page{
+    display: inline-flex; align-items: center; gap: 8px;
+    word-break: break-word;
+  }
+
+  /* Optional: truncate long page names on desktop */
+  .pageviews .pv-page{
+    max-width: 520px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  @media (max-width: 576px){
+    .pageviews .pv-page{ white-space: normal; max-width: 100%; }
+  }
+
+  /* Sticky header & max height (desktop) */
+  @media (min-width: 577px){
+    .pageviews .table-responsive { max-height: 420px; }
+    .pageviews thead th{
+      position: sticky; top: 0; z-index: 1;
+    }
+  }
+
+  /* Mobile card view */
+  @media (max-width: 576px){
+    .pageviews table.table{ display:block; }
+    .pageviews table.table thead{ display:none; }
+    .pageviews table.table tbody{ display:block; }
+    .pageviews table.table tr{
+      display:block; background:#fff; border:1px solid #e9ecef; border-radius:12px;
+      padding:12px; margin:10px 12px; box-shadow:0 6px 16px rgba(2,8,23,.04);
+    }
+    .pageviews table.table td{
+      display:flex; justify-content:space-between; gap:12px;
+      padding:6px 0 !important; border:0 !important;
+    }
+    .pageviews table.table td::before{
+      content:attr(data-label);
+      font-weight:600; color:#64748b; min-width:120px; text-align:left;
+    }
+    .pageviews .td-views{
+      text-align:right !important;
+    }
+  }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -196,6 +259,46 @@ function status_badge_class($s){
       <div class="col-6 col-md-4 col-xl-2 d-grid">
         <a class="btn btn-outline-dark" href="settings.php"><i class="fa-solid fa-gear"></i> সেটিংস</a>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Page Views (Responsive) -->
+<div class="card mb-3 pageviews">
+  <div class="card-body p-0">
+    <div class="d-flex justify-content-between align-items-center p-3 pb-0">
+      <h6 class="m-0">Page Views</h6>
+      <?php if ($page_views): ?>
+        <span class="text-muted small">Top <?php echo count($page_views); ?></span>
+      <?php endif; ?>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-striped align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Page</th>
+            <th class="text-end">Views</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php foreach($page_views as $pv): ?>
+          <tr>
+            <td data-label="Page">
+              <span class="pv-page">
+                <i class="fa-regular fa-file-lines d-none d-sm-inline"></i>
+                <?php echo h($pv['page']); ?>
+              </span>
+            </td>
+            <td data-label="Views" class="text-end td-views">
+              <?php echo h($pv['views']); ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+        <?php if(!$page_views): ?>
+          <tr><td colspan="2" class="text-center text-muted py-4">No page view data</td></tr>
+        <?php endif; ?>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>

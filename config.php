@@ -58,4 +58,17 @@ function save_setting($key, $value){
   $pdo->prepare("INSERT INTO settings(`key`,`value`) VALUES(?,?) ON DUPLICATE KEY UPDATE value=VALUES(value)")
       ->execute([$key, $value]);
 }
+// ---------- page view helpers ----------
+function increment_page_view($page){
+  $pdo = get_pdo();
+  $pdo->prepare("INSERT INTO page_views(page, views) VALUES(?,1) ON DUPLICATE KEY UPDATE views=views+1")
+      ->execute([$page]);
+}
+
+function get_page_views($page){
+  $pdo = get_pdo();
+  $stm = $pdo->prepare("SELECT views FROM page_views WHERE page=? LIMIT 1");
+  $stm->execute([$page]);
+  return (int)($stm->fetchColumn() ?: 0);
+}
 ?>
