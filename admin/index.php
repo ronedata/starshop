@@ -43,6 +43,15 @@ $stm->execute([$td]); $pending_today = (int)$stm->fetchColumn();
 $stm = $pdo->prepare("SELECT COUNT(*) FROM products WHERE stock <= ?");
 $stm->execute([$LOW_STOCK]); $low_stock_count = (int)$stm->fetchColumn();
 
+/* Page views (top pages) */
+$page_views = [];
+try {
+  $stm = $pdo->query("SELECT page, views FROM page_views ORDER BY views DESC LIMIT 10");
+  $page_views = $stm->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+  $page_views = [];
+}
+
 /* ---- Recent orders (today) ---- */
 $limit = 15;
 $stm = $pdo->prepare("SELECT id, order_code, customer_name, mobile, total, status, created_at
@@ -196,6 +205,36 @@ function status_badge_class($s){
       <div class="col-6 col-md-4 col-xl-2 d-grid">
         <a class="btn btn-outline-dark" href="settings.php"><i class="fa-solid fa-gear"></i> সেটিংস</a>
       </div>
+    </div>
+</div>
+</div>
+
+<!-- Page Views -->
+<div class="card mb-3">
+  <div class="card-body p-0">
+    <div class="d-flex justify-content-between align-items-center p-3 pb-0">
+      <h6 class="m-0">Page Views</h6>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-striped align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Page</th>
+            <th class="text-end">Views</th>
+          </tr>
+        </thead>
+        <tbody>
+        <?php foreach($page_views as $pv): ?>
+          <tr>
+            <td data-label="Page"><?php echo h($pv['page']); ?></td>
+            <td data-label="Views" class="text-end"><?php echo h($pv['views']); ?></td>
+          </tr>
+        <?php endforeach; ?>
+        <?php if(!$page_views): ?>
+          <tr><td colspan="2" class="text-center text-muted py-4">No page view data</td></tr>
+        <?php endif; ?>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
